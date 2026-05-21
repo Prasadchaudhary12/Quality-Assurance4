@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import datetime
 
-# -------------------- CONFIG --------------------
-st.set_page_config(page_title="Internal Audit QA Tool", layout="wide")
+# ---------------- UI CONFIG ----------------
+st.set_page_config(page_title="QA Tool", layout="wide")
 
 st.markdown("""
 <style>
@@ -11,33 +11,36 @@ html, body {
     font-family: Calibri;
 }
 .stApp {
-    background-color: #f2f2f2;
+    background-color: #f4f4f4;
+}
+.main-header {
+    background-color: #222;
+    color: white;
+    padding: 12px;
+    border-radius: 5px;
 }
 .stButton>button {
     background-color: #f1c40f;
     color: black;
     border-radius: 6px;
-    font-weight:bold;
-}
-.sidebar .sidebar-content {
-    background-color: #222;
+    font-weight: bold;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- SESSION INIT --------------------
+# ---------------- SESSION INIT ----------------
 def init():
-    defaults = {
-        "users": {"admin":"admin"},
-        "login": False,
-        "user": "",
-        "clients": [],
-        "engagements": [],
-        "qa": [],
-        "logs": [],
-        "archive": []
+    keys = {
+        "users":{"admin":"admin"},
+        "login":False,
+        "user":"",
+        "clients":[],
+        "eng":[],
+        "qa":[],
+        "logs":[],
+        "archive":[]
     }
-    for k,v in defaults.items():
+    for k,v in keys.items():
         if k not in st.session_state:
             st.session_state[k]=v
 
@@ -45,213 +48,199 @@ init()
 
 def log(action):
     st.session_state.logs.append({
-        "user": st.session_state.user,
-        "action": action,
-        "time": datetime.datetime.now()
+        "User":st.session_state.user,
+        "Action":action,
+        "Time":datetime.datetime.now()
     })
 
-# -------------------- LOGIN --------------------
+# ---------------- LOGIN ----------------
 def login():
-    st.title("🔐 Internal Audit QA Tool")
+    st.markdown("<div class='main-header'><h2>🔐 Internal Audit QA Tool</h2></div>", unsafe_allow_html=True)
 
-    u = st.text_input("Username")
-    p = st.text_input("Password", type="password")
+    u=st.text_input("Username")
+    p=st.text_input("Password", type="password")
 
     if st.button("Login"):
-        if u in st.session_state.users and st.session_state.users[u] == p:
-            st.session_state.login = True
-            st.session_state.user = u
+        if u in st.session_state.users and st.session_state.users[u]==p:
+            st.session_state.login=True
+            st.session_state.user=u
             log("Login")
             st.rerun()
         else:
             st.error("Invalid credentials")
 
-# -------------------- DASHBOARD --------------------
+# ---------------- HEADER ----------------
+def header():
+    col1, col2 = st.columns([8,2])
+
+    col1.markdown("<div class='main-header'><h3>🚆 Internal Audit QA System</h3></div>", unsafe_allow_html=True)
+
+    with col2:
+        st.write(f"👤 {st.session_state.user}")
+        if st.button("Logout"):
+            log("Logout")
+            st.session_state.login=False
+            st.session_state.user=""
+            st.rerun()
+
+# ---------------- DASHBOARD ----------------
 def dashboard():
-    st.title("📊 Dashboard")
+    st.subheader("📊 Dashboard")
 
-    df = pd.DataFrame(st.session_state.qa)
+    df=pd.DataFrame(st.session_state.qa)
 
-    total = len(df)
-    pass_c = len(df[df.result=="Pass"]) if not df.empty else 0
-    fail_c = len(df[df.result=="Fail"]) if not df.empty else 0
+    total=len(df)
+    pass_c=len(df[df.result=="Pass"]) if not df.empty else 0
+    fail_c=len(df[df.result=="Fail"]) if not df.empty else 0
 
-    completed = total
-    inprogress = 0
-    not_started = max(0, len(st.session_state.engagements) - completed)
+    completed=total
+    inprogress=0
+    notstarted=max(0,len(st.session_state.eng)-total)
 
-    c1,c2,c3,c4 = st.columns(4)
+    c1,c2,c3,c4=st.columns(4)
     c1.metric("Total QA", total)
     c2.metric("Completed", completed)
     c3.metric("In Progress", inprogress)
-    c4.metric("Not Started", not_started)
+    c4.metric("Not Started", notstarted)
 
-    st.progress(completed/(len(st.session_state.engagements)+1))
+    st.progress(completed/(len(st.session_state.eng)+1))
 
     st.success(f"✅ Pass: {pass_c}")
     st.error(f"❌ Fail: {fail_c}")
 
-# -------------------- CLIENT --------------------
-def create_client():
-    st.title("🏢 Create Client")
+# ---------------- CLIENT ----------------
+def client():
+    st.subheader("🏢 Create Client")
 
-    name = st.text_input("Client Name")
+    name=st.text_input("Client Name")
 
-    if st.button("Save Client") and name:
+    if st.button("Add Client") and name:
         st.session_state.clients.append(name)
-        log(f"Client created {name}")
+        log("Client added")
         st.success("Client Created")
 
-# -------------------- ENGAGEMENT --------------------
-def create_engagement():
-    st.title("📁 Create Engagement")
+# ---------------- ENGAGEMENT ----------------
+def engagement():
+    st.subheader("📁 Create Engagement")
 
     if not st.session_state.clients:
         st.warning("Create client first")
         return
 
-    client = st.selectbox("Client", st.session_state.clients)
-    fy = st.text_input("Financial Year")
-    process = st.text_input("Audit Process")
-    auditor = st.text_input("Auditor Name")
-    auditee = st.text_input("Auditee Name")
-    dept = st.text_input("Department")
-    title = st.text_input("Title")
+    client=st.selectbox("Client",st.session_state.clients)
+    fy=st.text_input("Financial Year")
+    process=st.text_input("Audit Process")
+    auditor=st.text_input("Auditor")
+    auditee=st.text_input("Auditee")
+    dept=st.text_input("Department")
+    title=st.text_input("Title")
 
     if st.button("Create Engagement"):
-        st.session_state.engagements.append({
-            "id": len(st.session_state.engagements),
-            "client": client,
-            "fy": fy,
-            "process": process,
-            "auditor": auditor,
-            "auditee": auditee,
-            "dept": dept,
-            "title": title,
-            "signed_off": False
+        st.session_state.eng.append({
+            "id":len(st.session_state.eng),
+            "client":client,
+            "process":process,
+            "fy":fy,
+            "signed":False
         })
-        log("Engagement Created")
-        st.success("Engagement Created")
+        log("Eng created")
+        st.success("Created")
 
-# -------------------- CHECKLIST --------------------
-CHECKLIST = [
-    "Planning",
-    "Risk Assessment",
-    "Control Testing",
-    "Evidence Review",
-    "Conclusion"
-]
-
-MANDATORY = [
-    "Scoping Memo",
-    "Audit Report",
-    "RCM",
-    "Audit Program",
-    "Workpapers",
-    "Evidence"
-]
+# ---------------- CHECKLIST ----------------
+CHECKLIST=["Planning","Risk Assessment","Control Testing","Evidence","Conclusion"]
+DOCS=["Scoping Memo","Audit Report","RCM","Audit Program","Workpapers","Evidence"]
 
 def checklist():
-    st.title("✅ QA Checklist")
+    st.subheader("✅ QA Checklist")
 
-    if not st.session_state.engagements:
+    if not st.session_state.eng:
         st.warning("Create engagement first")
         return
 
-    eng = st.selectbox(
+    e=st.selectbox(
         "Select Engagement",
-        st.session_state.engagements,
-        format_func=lambda x: f"{x['client']} - {x['process']}"
+        st.session_state.eng,
+        format_func=lambda x:f"{x['client']} | {x['process']}"
     )
 
-    st.subheader("📎 Mandatory Documents")
-    for doc in MANDATORY:
-        st.file_uploader(doc, key=f"{eng['id']}_{doc}")
+    st.markdown("### 📎 Mandatory Documents")
+    for d in DOCS:
+        st.file_uploader(d, key=f"{e['id']}_{d}")
 
     st.divider()
 
     for step in CHECKLIST:
-        st.subheader(f"🔹 {step}")
+        st.markdown(f"### 🔹 {step}")
 
-        st.file_uploader("Upload Evidence", key=f"{eng['id']}_{step}")
+        st.file_uploader("Upload Evidence", key=f"{e['id']}{step}")
 
-        remarks = st.text_area("Remarks / Justification", key=f"{eng['id']}_{step}_r")
+        remark=st.text_area("Remarks", key=f"{e['id']}{step}r")
 
-        col1,col2,col3 = st.columns(3)
+        col1,col2,col3=st.columns(3)
 
-        if col1.button("✔ Pass", key=f"{eng['id']}_{step}_p"):
-            save(step,"Pass",remarks)
+        if col1.button("✔ Pass",key=f"{e['id']}{step}p"):
+            save(step,"Pass",remark)
 
-        if col2.button("❌ Fail", key=f"{eng['id']}_{step}_f"):
-            save(step,"Fail",remarks)
+        if col2.button("❌ Fail",key=f"{e['id']}{step}f"):
+            save(step,"Fail",remark)
 
-        if col3.button("N/A", key=f"{eng['id']}_{step}_na"):
-            save(step,"NA",remarks)
+        if col3.button("N/A",key=f"{e['id']}{step}n"):
+            save(step,"NA",remark)
 
-        if st.button("💬 Chat Assist", key=f"{eng['id']}_{step}_chat"):
-            st.info("Suggestion: Improve control documentation and validation.")
+        if st.button("💬 Improve Step",key=f"{e['id']}{step}chat"):
+            st.info("Suggestion: Enhance documentation and control rationale.")
 
-    # SIGN OFF
-    st.divider()
-    if st.button("✅ Sign-off QA (Human Review)"):
-        eng["signed_off"] = True
-        log("QA Signed Off")
-        st.success("Signed-off completed ✅")
+    if st.button("✅ Human Sign‑off"):
+        e["signed"]=True
+        log("Signed off")
+        st.success("QA Signed Off")
 
-# -------------------- SAVE --------------------
-def save(step, result, remarks):
+def save(step,res,remark):
     st.session_state.qa.append({
-        "step": step,
-        "result": result,
-        "remarks": remarks,
-        "user": st.session_state.user,
-        "time": datetime.datetime.now()
+        "step":step,
+        "result":res,
+        "remark":remark,
+        "user":st.session_state.user,
+        "time":datetime.datetime.now()
     })
-    log(f"{step} {result}")
+    log(f"{step}-{res}")
     st.success("Saved")
 
-# -------------------- REPORT --------------------
+# ---------------- REPORT ----------------
 def report():
-    st.title("📄 Final Report")
+    st.subheader("📄 Final Report")
 
-    df = pd.DataFrame(st.session_state.qa)
-
+    df=pd.DataFrame(st.session_state.qa)
     st.dataframe(df)
 
-    st.download_button("📥 Export Excel", df.to_csv(index=False), "QA_Report.csv")
+    st.download_button("📥 Export Excel",df.to_csv(index=False),"QA_Report.csv")
 
-    if st.button("💬 Refine Report"):
-        st.info("AI Suggestion: Improve executive summary and findings clarity.")
+    if st.button("💬 Improve Report"):
+        st.info("Suggestion: Improve executive summary.")
 
-# -------------------- LOGS --------------------
+# ---------------- LOGS ----------------
 def logs():
-    st.title("📜 Audit Logs")
+    st.subheader("📜 Audit Logs")
     st.dataframe(pd.DataFrame(st.session_state.logs))
 
-# -------------------- ARCHIVE --------------------
+# ---------------- ARCHIVE ----------------
 def archive():
-    st.title("📦 Archive")
+    st.subheader("📦 Archive")
 
-    if st.button("Archive Data"):
+    if st.button("Archive All"):
         st.session_state.archive.append(st.session_state.qa)
-        st.session_state.qa = []
-        log("Archived QA Data")
-        st.success("Archived Successfully")
+        st.session_state.qa=[]
+        log("Archived")
+        st.success("Archived")
 
-# -------------------- MAIN --------------------
+# ---------------- MAIN ----------------
 if not st.session_state.login:
     login()
 else:
-    st.sidebar.title("🚆 QA System Menu")
-    st.sidebar.write(f"👤 {st.session_state.user}")
+    header()
 
-    if st.sidebar.button("🚪 Logout"):
-        log("Logout")
-        st.session_state.login = False
-        st.session_state.user = ""
-        st.rerun()
-
-    menu = st.sidebar.radio("Navigate", [
+    # ✅ MAIN DROPDOWN MENU
+    menu = st.selectbox("Navigate", [
         "Home",
         "Dashboard",
         "Create Client",
@@ -263,17 +252,17 @@ else:
     ])
 
     if menu == "Home":
-        st.title("🏠 QA Portal Home")
-        st.info("Structured workflow system similar to enterprise tools.")
+        st.title("🏠 Home")
+        st.info("Structured QA system similar to enterprise workflow tools.")
 
     elif menu == "Dashboard":
         dashboard()
 
     elif menu == "Create Client":
-        create_client()
+        client()
 
     elif menu == "Create Engagement":
-        create_engagement()
+        engagement()
 
     elif menu == "Checklist":
         checklist()
